@@ -63,17 +63,24 @@ export default function UploadSection({ setResults, setIsLoading, isLoading }) {
     window.scrollTo({ top: 400, behavior: 'smooth' });
 
     try {
-      const res = await axios.post('/api/scan', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      setResults(res.data);
-      setTimeout(() => {
-        document.getElementById('results')?.scrollIntoView({ behavior: 'smooth' });
-      }, 200);
-    } catch (err) {
-      const msg = err.response?.data?.error || err.message || 'Something went wrong';
-      setError(msg);
-    } finally {
+  const res = await axios.post(
+    `${import.meta.env.VITE_API_URL}/api/scan`,
+    formData,
+    {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }
+  );
+
+  setResults(res.data);
+
+  setTimeout(() => {
+    document.getElementById('results')?.scrollIntoView({ behavior: 'smooth' });
+  }, 200);
+
+} catch (err) {
+  const msg = err.response?.data?.error || err.message || 'Something went wrong';
+  setError(msg);
+}finally {
       setIsLoading(false);
     }
   };

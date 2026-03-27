@@ -7,11 +7,11 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        target: 'https://resume-scanner-backend-7pgv.onrender.com',
         changeOrigin: true
       },
       '/outputs': {
-        target: 'http://localhost:5000',
+        target: 'https://resume-scanner-backend-7pgv.onrender.com',
         changeOrigin: true
       }
     }
