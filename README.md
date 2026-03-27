@@ -139,7 +139,7 @@ You should see:
 
 ### Step 7 — Open the App
 
-Open your browser: **http://localhost:5173**
+Open your browser: (https://airesumescanner.vercel.app/)
 
 ---
 
