@@ -1,0 +1,153 @@
+const PDFDocument = require('pdfkit');
+const fs = require('fs');
+const path = require('path');
+const { v4: uuidv4 } = require('uuid');
+
+function generateUpdatedResumePDF(analysisData, outputDir) {
+  return new Promise((resolve, reject) => {
+    const fileName = `updated_resume_${uuidv4()}.pdf`;
+    const filePath = path.join(outputDir, fileName);
+    const doc = new PDFDocument({ margin: 50, size: 'A4' });
+    const stream = fs.createWriteStream(filePath);
+
+    doc.pipe(stream);
+
+    const { updatedResumeContent, matchedSkills, recommendations } = analysisData;
+    const content = updatedResumeContent || {};
+
+    // Color scheme
+    const primaryColor = '#1a1a2e';
+    const accentColor = '#e94560';
+    const lightGray = '#f8f9fa';
+    const darkGray = '#555555';
+
+    // Header background
+    doc.rect(0, 0, doc.page.width, 120).fill(primaryColor);
+
+    // Name
+    doc.fontSize(26).font('Helvetica-Bold').fillColor('#ffffff');
+    const name = content.name || 'Candidate Name';
+    doc.text(name, 50, 35);
+
+    // Contact info
+    doc.fontSize(10).font('Helvetica').fillColor('#cccccc');
+    let contactY = 70;
+    if (content.email) {
+      doc.text(`✉ ${content.email}`, 50, contactY);
+      contactY += 15;
+    }
+    if (content.phone) {
+      doc.text(`✆ ${content.phone}`, 50, contactY);
+    }
+
+    // Score badge
+    const score = analysisData.score || 0;
+    const scoreColor = score >= 7 ? '#27ae60' : score >= 5 ? '#f39c12' : '#e74c3c';
+    doc.rect(doc.page.width - 110, 25, 80, 70).fill(scoreColor);
+    doc.fontSize(12).font('Helvetica-Bold').fillColor('#ffffff');
+    doc.text('ATS SCORE', doc.page.width - 105, 35, { width: 70, align: 'center' });
+    doc.fontSize(28).text(`${score}/10`, doc.page.width - 105, 52, { width: 70, align: 'center' });
+
+    let y = 140;
+
+    // Section helper
+    const addSection = (title, yPos) => {
+      doc.rect(50, yPos, doc.page.width - 100, 22).fill(primaryColor);
+      doc.fontSize(11).font('Helvetica-Bold').fillColor('#ffffff');
+      doc.text(title.toUpperCase(), 58, yPos + 6);
+      return yPos + 30;
+    };
+
+    // Professional Summary
+    if (content.summary) {
+      y = addSection('Professional Summary', y);
+      doc.fontSize(10).font('Helvetica').fillColor('#333333');
+      doc.text(content.summary, 50, y, { width: doc.page.width - 100, align: 'justify' });
+      y = doc.y + 15;
+    }
+
+    // Skills
+    const skills = content.skills && content.skills.length > 0
+      ? content.skills
+      : (matchedSkills || []);
+
+    if (skills.length > 0) {
+      y = addSection('Core Skills', y);
+      // Skill chips
+      let chipX = 50;
+      const chipY = y;
+      let maxChipY = chipY;
+      skills.forEach(skill => {
+        const skillWidth = skill.length * 6.5 + 20;
+        if (chipX + skillWidth > doc.page.width - 50) {
+          chipX = 50;
+          y += 25;
+          maxChipY = y;
+        }
+        doc.roundedRect(chipX, y, skillWidth, 18, 5).fill(accentColor);
+        doc.fontSize(8).font('Helvetica').fillColor('#ffffff');
+        doc.text(skill, chipX + 5, y + 5, { width: skillWidth - 10 });
+        chipX += skillWidth + 8;
+      });
+      y = Math.max(maxChipY, y) + 30;
+    }
+
+    // Experience
+    if (content.experience) {
+      y = addSection('Work Experience', y);
+      doc.fontSize(10).font('Helvetica').fillColor('#333333');
+      const expLines = content.experience.split('\n').filter(l => l.trim());
+      expLines.forEach(line => {
+        if (y > doc.page.height - 100) {
+          doc.addPage();
+          y = 50;
+        }
+        if (line.startsWith('•') || line.startsWith('-')) {
+          doc.text(line, 60, y, { width: doc.page.width - 120 });
+        } else {
+          doc.font('Helvetica-Bold').text(line, 50, y, { width: doc.page.width - 100 });
+          doc.font('Helvetica');
+        }
+        y = doc.y + 4;
+      });
+      y += 10;
+    }
+
+    // Education
+    if (content.education) {
+      if (y > doc.page.height - 150) { doc.addPage(); y = 50; }
+      y = addSection('Education', y);
+      doc.fontSize(10).font('Helvetica').fillColor('#333333');
+      doc.text(content.education, 50, y, { width: doc.page.width - 100 });
+      y = doc.y + 15;
+    }
+
+    // Recommendations box
+    if (recommendations && recommendations.length > 0) {
+      if (y > doc.page.height - 200) { doc.addPage(); y = 50; }
+      y = addSection('Career Coach Recommendations', y);
+      doc.fontSize(9).font('Helvetica').fillColor(darkGray);
+      recommendations.slice(0, 5).forEach((rec, i) => {
+        if (y > doc.page.height - 100) { doc.addPage(); y = 50; }
+        doc.circle(58, y + 4, 3).fill(accentColor);
+        doc.text(`${rec}`, 68, y, { width: doc.page.width - 120 });
+        y = doc.y + 6;
+      });
+    }
+
+    // Footer
+    doc.rect(0, doc.page.height - 40, doc.page.width, 40).fill(primaryColor);
+    doc.fontSize(8).font('Helvetica').fillColor('#aaaaaa');
+    doc.text('Generated by Resume Scanner AI • Optimized for ATS Systems', 50, doc.page.height - 25, {
+      width: doc.page.width - 100,
+      align: 'center'
+    });
+
+    doc.end();
+
+    stream.on('finish', () => resolve({ fileName, filePath }));
+    stream.on('error', reject);
+  });
+}
+
+module.exports = { generateUpdatedResumePDF };
